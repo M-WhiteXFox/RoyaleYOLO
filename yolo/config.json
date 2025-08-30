@@ -4,5 +4,5 @@
     "output_dir": "E:/hszz/RoyaleYOLO/yolo/labelme_dataset",
     "conf_threshold": 0.601957585644372,
     "img_size": 640,
-    "frame_interval": 25
+    "frame_interval": 5
 }
