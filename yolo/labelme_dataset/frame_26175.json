@@ -1,0 +1,26 @@
+{
+  "version": "5.3.1",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          295.79449462890625,
+          518.0169677734375
+        ],
+        [
+          338.516845703125,
+          556.7745971679688
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    }
+  ],
+  "imagePath": "frame_26175.jpg",
+  "imageData": null,
+  "imageHeight": 852,
+  "imageWidth": 480
+}

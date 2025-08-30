@@ -1,0 +1,58 @@
+{
+  "version": "5.3.1",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          333.1472473144531,
+          374.9351806640625
+        ],
+        [
+          373.5608215332031,
+          434.65899658203125
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          228.70884704589844,
+          355.104736328125
+        ],
+        [
+          270.65240478515625,
+          413.3690490722656
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          298.4900207519531,
+          356.3717346191406
+        ],
+        [
+          336.9040222167969,
+          405.76220703125
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    }
+  ],
+  "imagePath": "frame_32025.jpg",
+  "imageData": null,
+  "imageHeight": 852,
+  "imageWidth": 480
+}

@@ -5,6 +5,25 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from PIL import Image, ImageTk
 from ultralytics import YOLO
+import logging
+import sys
+import gc
+
+
+class TextHandler(logging.Handler):
+    """自定义日志处理器，将日志消息重定向到Tkinter Text控件。"""
+
+    def __init__(self, text_widget):
+        super().__init__()
+        self.text_widget = text_widget
+        self.text_widget.configure(state='disabled')
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.text_widget.configure(state='normal')
+        self.text_widget.insert(tk.END, msg + '\n')
+        self.text_widget.see(tk.END)
+        self.text_widget.configure(state='disabled')
 
 
 class YoloAnnotator:
@@ -12,6 +31,8 @@ class YoloAnnotator:
         self.root = root
         self.root.title("YOLO 视频标注工具")
         self.root.geometry("1600x1000")
+
+        self.setup_logging()
 
         # Configuration
         self.config_file = "config.json"
@@ -29,9 +50,12 @@ class YoloAnnotator:
         self.class_names = []
         self.history = []
         self.current_frame_num = 0
+        self.total_frames = 0
         self.current_frame_img = None
         self.detections = []
         self.selected_detection_id = None
+        self.is_processing_batch = False
+        self.target_frame_num = tk.StringVar()
 
         # Scaling/Zooming
         self.zoom_level = 1.0  # Current zoom level for detection canvas
@@ -55,6 +79,250 @@ class YoloAnnotator:
         self.bind_events()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def setup_logging(self):
+        """配置日志记录器，将日志输出到文件和Tkinter Text控件。"""
+        log_format = '%(asctime)s - %(levelname)s - %(message)s'
+        logging.basicConfig(level=logging.INFO,
+                            format=log_format,
+                            handlers=[
+                                logging.FileHandler('app.log', encoding='utf-8')
+                            ])
+        self.logger = logging.getLogger('YoloAnnotator')
+
+    def setup_gui(self):
+        # Main container
+        main = ttk.Frame(self.root, padding=10)
+        main.pack(fill=tk.BOTH, expand=True)
+
+        # --------- Configuration Area ---------
+        cfg = ttk.LabelFrame(main, text="配置", padding=10)
+        cfg.pack(fill=tk.X, pady=5)
+        cfg.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(cfg, text="视频文件:").grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Entry(cfg, textvariable=self.video_path, state="readonly").grid(row=0, column=1, sticky="we")
+        ttk.Button(cfg, text="选择...", command=self.select_video).grid(row=0, column=2, padx=5)
+
+        ttk.Label(cfg, text="模型文件:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(cfg, textvariable=self.model_path, state="readonly").grid(row=1, column=1, sticky="we")
+        ttk.Button(cfg, text="选择...", command=self.select_model).grid(row=1, column=2, padx=5)
+
+        ttk.Label(cfg, text="输出目录:").grid(row=2, column=0, sticky="w", padx=5)
+        ttk.Entry(cfg, textvariable=self.output_dir, state="readonly").grid(row=2, column=1, sticky="we")
+        ttk.Button(cfg, text="选择...", command=self.select_output_dir).grid(row=2, column=2, padx=5)
+
+        # --------- Parameter Area ---------
+        param_frame = ttk.Frame(cfg)
+        param_frame.grid(row=3, column=0, columnspan=3, sticky="we", pady=5)
+        param_frame.grid_columnconfigure(3, weight=1)
+
+        ttk.Label(param_frame, text="抽帧间隔:").grid(row=0, column=0, padx=5)
+        self.interval_entry = ttk.Entry(param_frame, width=5, textvariable=self.frame_interval)
+        self.interval_entry.grid(row=0, column=1)
+
+        ttk.Label(param_frame, text="置信度:").grid(row=0, column=2, padx=5)
+        self.conf_scale = ttk.Scale(param_frame, from_=0, to=1, orient=tk.HORIZONTAL, variable=self.conf_threshold)
+        self.conf_scale.grid(row=0, column=3, sticky="we")
+        self.conf_entry = ttk.Entry(param_frame, width=5, textvariable=self.conf_threshold)
+        self.conf_entry.grid(row=0, column=4, padx=5)
+
+        ttk.Label(param_frame, text="图像尺寸:").grid(row=0, column=5, padx=5)
+        self.img_size_entry = ttk.Entry(param_frame, width=5, textvariable=self.img_size)
+        self.img_size_entry.grid(row=0, column=6)
+
+        # --------- Operation Buttons Area ---------
+        op_frame = ttk.LabelFrame(cfg, text="操作", padding=5)
+        op_frame.grid(row=4, column=0, columnspan=3, pady=10, sticky="we")
+        op_frame.grid_columnconfigure(0, weight=1)
+        op_frame.grid_columnconfigure(1, weight=1)
+
+        self.load_button = ttk.Button(op_frame, text="加载模型和视频", command=self.load_assets)
+        self.load_button.grid(row=0, column=0, padx=5, pady=3, sticky="we")
+
+        self.batch_convert_btn = ttk.Button(op_frame, text="一键批量转换", command=self.batch_process, state="disabled")
+        self.batch_convert_btn.grid(row=0, column=1, padx=5, pady=3, sticky="we")
+
+        # --------- Workspace ---------
+        workspace = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
+        workspace.pack(fill=tk.BOTH, expand=True)
+
+        # Left Pane: Original Image & Annotation List
+        left = ttk.PanedWindow(workspace, orient=tk.VERTICAL)
+
+        # Original Image (scaled down)
+        orig_frame = ttk.Frame(left)
+        ttk.Label(orig_frame, text="原图 (缩小)", font=("Arial", 12)).pack(pady=5)
+        self.orig_canvas = tk.Canvas(orig_frame, bg="lightgray")
+        self.orig_canvas.pack(fill=tk.BOTH, expand=True)
+        left.add(orig_frame, weight=3)
+
+        # Annotation List and Buttons
+        list_and_btns_frame = ttk.Frame(left)
+        list_and_btns_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+
+        list_frame = ttk.LabelFrame(list_and_btns_frame, text="标注列表", padding=5)
+        list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.detection_list = tk.Listbox(list_frame)
+        self.detection_list.pack(fill=tk.BOTH, expand=True)
+
+        # Action buttons frame next to the listbox
+        action_frame = ttk.LabelFrame(list_and_btns_frame, text="标注操作", padding=5)
+        action_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5)
+        action_frame.grid_columnconfigure(0, weight=1)
+
+        self.repredict_btn = ttk.Button(action_frame, text="重新预测", command=self.re_predict_frame, state="disabled")
+        self.repredict_btn.grid(row=0, column=0, padx=5, pady=3, sticky="we")
+        self.add_box_btn = ttk.Button(action_frame, text="添加新框", command=self.toggle_add_box_mode, state="disabled")
+        self.add_box_btn.grid(row=1, column=0, padx=5, pady=3, sticky="we")
+        self.delete_btn = ttk.Button(action_frame, text="删除选中", command=self.delete_selected, state="disabled")
+        self.delete_btn.grid(row=2, column=0, padx=5, pady=3, sticky="we")
+        self.clear_btn = ttk.Button(action_frame, text="全部清除", command=self.clear_all_detections, state="disabled")
+        self.clear_btn.grid(row=3, column=0, padx=5, pady=3, sticky="we")
+
+        ttk.Separator(action_frame, orient="horizontal").grid(row=4, column=0, sticky="we", pady=5)
+
+        self.prev_btn = ttk.Button(action_frame, text="上一张", command=lambda: self.navigate_frames(-1),
+                                   state="disabled")
+        self.prev_btn.grid(row=5, column=0, padx=5, pady=3, sticky="we")
+
+        self.save_next_btn = ttk.Button(action_frame, text="保存并下一张",
+                                        command=lambda: self.navigate_frames(1, save=True), state="disabled")
+        self.save_next_btn.grid(row=6, column=0, padx=5, pady=3, sticky="we")
+
+        self.skip_next_btn = ttk.Button(action_frame, text="跳过并下一张",
+                                        command=lambda: self.navigate_frames(1, save=False), state="disabled")
+        self.skip_next_btn.grid(row=7, column=0, padx=5, pady=3, sticky="we")
+
+        left.add(list_and_btns_frame, weight=1)
+
+        workspace.add(left, weight=1)
+
+        # Right Pane: Detection Results
+        right = ttk.Frame(workspace)
+        ttk.Label(right, text="检测结果 (放大/拖动)", font=("Arial", 12)).pack(pady=5)
+        self.detect_canvas = tk.Canvas(right, bg="lightgray", cursor="crosshair")
+        self.detect_canvas.pack(fill=tk.BOTH, expand=True)
+        workspace.add(right, weight=3)
+
+        # --------- Status & Log Area ---------
+        bottom_frame = ttk.Frame(main)
+        bottom_frame.pack(fill=tk.X, pady=5)
+
+        status_frame = ttk.Frame(bottom_frame)
+        status_frame.pack(fill=tk.X)
+        self.status_label = ttk.Label(status_frame, text="请先配置并加载...", anchor="w")
+        self.status_label.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
+
+        # Frame for jump-to-frame controls
+        jump_frame = ttk.Frame(status_frame)
+        jump_frame.pack(side=tk.RIGHT, padx=10)
+
+        ttk.Label(jump_frame, text="跳转到帧数:").pack(side=tk.LEFT, padx=5)
+        self.jump_entry = ttk.Entry(jump_frame, textvariable=self.target_frame_num, width=8)
+        self.jump_entry.pack(side=tk.LEFT, padx=5)
+        self.jump_btn = ttk.Button(jump_frame, text="跳转", command=self.jump_to_frame, state="disabled")
+        self.jump_btn.pack(side=tk.LEFT, padx=5)
+
+        self.frame_label = ttk.Label(status_frame, text="", anchor="e")
+        self.frame_label.pack(side=tk.RIGHT, padx=10)
+
+        log_frame = ttk.LabelFrame(bottom_frame, text="日志输出", padding=5)
+        log_frame.pack(fill=tk.BOTH, expand=True)
+        self.log_text = tk.Text(log_frame, wrap="word", height=5)
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+
+        # Add handler to log to the Text widget
+        text_handler = TextHandler(self.log_text)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        text_handler.setFormatter(formatter)
+        self.logger.addHandler(text_handler)
+
+        # 修复点: 确保所有按钮都已创建，然后再调用 check_paths。
+        self.check_paths()
+
+    def bind_events(self):
+        # Left-click for panning or drawing/moving
+        self.detect_canvas.bind("<ButtonPress-1>", self.on_press)
+        self.detect_canvas.bind("<B1-Motion>", self.on_drag)
+        self.detect_canvas.bind("<ButtonRelease-1>", self.on_release)
+        # Right-click for changing class
+        self.detect_canvas.bind("<Button-3>", self.on_right_press)
+        # Listbox events
+        self.detection_list.bind("<<ListboxSelect>>", self.on_list_select)
+        # Keyboard events
+        self.root.bind("<Delete>", self.delete_selected)
+        self.root.bind("<Escape>", self.cancel_add_mode)
+
+        # Mouse wheel for zooming
+        self.detect_canvas.bind("<MouseWheel>", self.on_zoom)  # For Windows/Linux
+        self.detect_canvas.bind("<Button-4>", self.on_zoom)  # For Linux
+        self.detect_canvas.bind("<Button-5>", self.on_zoom)  # For Linux
+
+    def on_zoom(self, event):
+        if self.current_frame_img is None:
+            self.logger.warning("无法缩放，未加载图像。")
+            return
+
+        zoom_factor = 1.1 if event.delta > 0 or event.num == 4 else 1 / 1.1
+        new_zoom_level = max(1.0, self.zoom_level * zoom_factor)
+
+        # Determine the canvas center
+        canvas_w, canvas_h = self.detect_canvas.winfo_width(), self.detect_canvas.winfo_height()
+        if canvas_w < 10 or canvas_h < 10:
+            canvas_w, canvas_h = 800, 600
+
+        # Calculate the image coordinates of the center point
+        center_x_img = (canvas_w / 2 - self.canvas_x_offset) / self.zoom_level
+        center_y_img = (canvas_h / 2 - self.canvas_y_offset) / self.zoom_level
+
+        # Update offsets to maintain the center point's position after zooming
+        self.canvas_x_offset += center_x_img * (self.zoom_level - new_zoom_level)
+        self.canvas_y_offset += center_y_img * (self.zoom_level - new_zoom_level)
+
+        self.zoom_level = new_zoom_level
+        self.redraw_canvas()
+        self.logger.info(f"缩放至 {self.zoom_level:.2f} 倍")
+
+    def select_video(self):
+        p = filedialog.askopenfilename(filetypes=[("MP4 files", "*.mp4"), ("All files", "*.*")])
+        if p:
+            self.video_path.set(p)
+            self.logger.info(f"已选择视频文件: {p}")
+            self.check_paths()
+            self.save_config()
+
+    def select_model(self):
+        p = filedialog.askopenfilename(filetypes=[("PyTorch Model", "*.pt"), ("All files", "*.*")])
+        if p:
+            self.model_path.set(p)
+            self.logger.info(f"已选择模型文件: {p}")
+            self.check_paths()
+            self.save_config()
+
+    def select_output_dir(self):
+        p = filedialog.askdirectory()
+        if p:
+            self.output_dir.set(p)
+            self.logger.info(f"已选择输出目录: {p}")
+            self.check_paths()
+            self.save_config()
+
+    def check_paths(self):
+        if self.video_path.get() and self.model_path.get() and self.output_dir.get():
+            self.logger.info("所有路径已配置，可以加载。")
+            if hasattr(self, 'load_button'):
+                self.load_button.config(state="normal")
+                # 修复点: 确保 jump_btn 已经创建
+                if hasattr(self, 'jump_btn'):
+                    self.jump_btn.config(state="normal")
+        else:
+            self.logger.warning("路径不完整，请配置所有文件和目录。")
+            if hasattr(self, 'load_button'):
+                self.load_button.config(state="disabled")
+                # 修复点: 确保 jump_btn 已经创建
+                if hasattr(self, 'jump_btn'):
+                    self.jump_btn.config(state="disabled")
+
     def load_config(self):
         if os.path.exists(self.config_file):
             try:
@@ -66,10 +334,12 @@ class YoloAnnotator:
                 self.conf_threshold.set(cfg.get("conf_threshold", 0.5))
                 self.img_size.set(cfg.get("img_size", 640))
                 self.frame_interval.set(cfg.get("frame_interval", 5))
+                self.logger.info("配置从文件加载成功。")
             except Exception as e:
-                print(f"Failed to load config file, creating default config: {e}")
+                self.logger.error(f"加载配置文件失败，正在创建默认配置: {e}")
                 self.create_default_config()
         else:
+            self.logger.info("未找到配置文件，正在创建默认配置。")
             self.create_default_config()
 
     def create_default_config(self):
@@ -95,8 +365,11 @@ class YoloAnnotator:
             self.frame_interval.set(int(self.interval_entry.get()))
             self.conf_threshold.set(float(self.conf_entry.get()))
             self.img_size.set(int(self.img_size_entry.get()))
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"保存配置时数据类型转换错误: {e}")
+            messagebox.showerror("保存配置", "请确保参数输入为有效数字。")
+            return
+
         cfg = {
             "video_path": self.video_path.get(),
             "model_path": self.model_path.get(),
@@ -107,193 +380,17 @@ class YoloAnnotator:
         }
         with open(self.config_file, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, indent=4)
+        self.logger.info("配置已成功保存。")
 
     def on_closing(self):
+        self.logger.info("程序正在关闭...")
         self.save_config()
         self.root.destroy()
-
-    def setup_gui(self):
-        # Main container
-        main = ttk.Frame(self.root, padding=10)
-        main.pack(fill=tk.BOTH, expand=True)
-
-        # --------- Configuration Area ---------
-        cfg = ttk.LabelFrame(main, text="配置", padding=10)
-        cfg.pack(fill=tk.X, pady=5)
-        cfg.grid_columnconfigure(1, weight=1)
-
-        ttk.Label(cfg, text="视频文件:").grid(row=0, column=0, sticky="w", padx=5)
-        ttk.Entry(cfg, textvariable=self.video_path, state="readonly").grid(row=0, column=1, sticky="we")
-        ttk.Button(cfg, text="选择...", command=self.select_video).grid(row=0, column=2, padx=5)
-
-        ttk.Label(cfg, text="模型文件:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        ttk.Entry(cfg, textvariable=self.model_path, state="readonly").grid(row=1, column=1, sticky="we")
-        ttk.Button(cfg, text="选择...", command=self.select_model).grid(row=1, column=2, padx=5)
-
-        ttk.Label(cfg, text="输出目录:").grid(row=2, column=0, sticky="w", padx=5)
-        ttk.Entry(cfg, textvariable=self.output_dir, state="readonly").grid(row=2, column=1, sticky="we")
-        ttk.Button(cfg, text="选择...", command=self.select_output_dir).grid(row=2, column=2, padx=5)
-
-        # --------- Operation Buttons Area ---------
-        button_frame = ttk.LabelFrame(cfg, text="操作", padding=5)
-        button_frame.grid(row=3, column=0, columnspan=3, pady=10, sticky="we")
-        for col in range(4):
-            button_frame.grid_columnconfigure(col, weight=1)
-
-        self.load_button = ttk.Button(button_frame, text="加载模型和视频", command=self.load_assets)
-        self.load_button.grid(row=0, column=0, padx=5, pady=3, sticky="we")
-
-        self.repredict_btn = ttk.Button(button_frame, text="重新预测", command=self.re_predict_frame, state="disabled")
-        self.repredict_btn.grid(row=0, column=1, padx=5, pady=3, sticky="we")
-
-        self.add_box_btn = ttk.Button(button_frame, text="添加新框", command=self.toggle_add_box_mode, state="disabled")
-        self.add_box_btn.grid(row=0, column=2, padx=5, pady=3, sticky="we")
-
-        self.delete_btn = ttk.Button(button_frame, text="删除选中", command=self.delete_selected, state="disabled")
-        self.delete_btn.grid(row=0, column=3, padx=5, pady=3, sticky="we")
-
-        self.clear_btn = ttk.Button(button_frame, text="全部清除", command=self.clear_all_detections, state="disabled")
-        self.clear_btn.grid(row=1, column=0, padx=5, pady=3, sticky="we")
-
-        self.prev_btn = ttk.Button(button_frame, text="上一张", command=lambda: self.navigate_frames(-1),
-                                   state="disabled")
-        self.prev_btn.grid(row=1, column=1, padx=5, pady=3, sticky="we")
-
-        self.save_next_btn = ttk.Button(button_frame, text="保存并下一张",
-                                        command=lambda: self.navigate_frames(1, save=True), state="disabled")
-        self.save_next_btn.grid(row=1, column=2, padx=5, pady=3, sticky="we")
-
-        self.skip_next_btn = ttk.Button(button_frame, text="跳过并下一张",
-                                        command=lambda: self.navigate_frames(1, save=False), state="disabled")
-        self.skip_next_btn.grid(row=1, column=3, padx=5, pady=3, sticky="we")
-
-        self.check_paths()
-
-        # --------- Parameter Area ---------
-        param_frame = ttk.Frame(cfg)
-        param_frame.grid(row=4, column=0, columnspan=3, sticky="we", pady=5)
-        param_frame.grid_columnconfigure(3, weight=1)
-
-        ttk.Label(param_frame, text="抽帧间隔:").grid(row=0, column=0, padx=5)
-        self.interval_entry = ttk.Entry(param_frame, width=5, textvariable=self.frame_interval)
-        self.interval_entry.grid(row=0, column=1)
-
-        ttk.Label(param_frame, text="置信度:").grid(row=0, column=2, padx=5)
-        self.conf_scale = ttk.Scale(param_frame, from_=0, to=1, orient=tk.HORIZONTAL, variable=self.conf_threshold)
-        self.conf_scale.grid(row=0, column=3, sticky="we")
-        self.conf_entry = ttk.Entry(param_frame, width=5, textvariable=self.conf_threshold)
-        self.conf_entry.grid(row=0, column=4, padx=5)
-
-        ttk.Label(param_frame, text="图像尺寸:").grid(row=0, column=5, padx=5)
-        self.img_size_entry = ttk.Entry(param_frame, width=5, textvariable=self.img_size)
-        self.img_size_entry.grid(row=0, column=6)
-
-        # --------- Workspace ---------
-        workspace = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
-        workspace.pack(fill=tk.BOTH, expand=True)
-
-        # Original Image (scaled down)
-        left = ttk.Frame(workspace)
-        ttk.Label(left, text="原图 (缩小)", font=("Arial", 12)).pack(pady=5)
-        self.orig_canvas = tk.Canvas(left, bg="lightgray")
-        self.orig_canvas.pack(fill=tk.BOTH, expand=True)
-        workspace.add(left, weight=1)
-
-        # Detection Results (zoomed/panned)
-        right = ttk.PanedWindow(workspace, orient=tk.VERTICAL)
-        cf = ttk.Frame(right)
-        ttk.Label(cf, text="检测结果 (放大/拖动)", font=("Arial", 12)).pack(pady=5)
-        self.detect_canvas = tk.Canvas(cf, bg="lightgray", cursor="crosshair")
-        self.detect_canvas.pack(fill=tk.BOTH, expand=True)
-        right.add(cf, weight=3)
-
-        # Annotation List
-        lf = ttk.LabelFrame(right, text="标注列表与操作", padding=5)
-        self.detection_list = tk.Listbox(lf)
-        self.detection_list.pack(fill=tk.BOTH, expand=True, padx=5)
-        right.add(lf, weight=1)
-
-        workspace.add(right, weight=3)
-
-        # --------- Status Bar ---------
-        bottom = ttk.Frame(main)
-        bottom.pack(fill=tk.X, pady=5)
-        self.status_label = ttk.Label(bottom, text="请先配置并加载...", anchor="w")
-        self.status_label.pack(fill=tk.X, padx=10)
-
-    def bind_events(self):
-        # Left-click for panning or drawing/moving
-        self.detect_canvas.bind("<ButtonPress-1>", self.on_press)
-        self.detect_canvas.bind("<B1-Motion>", self.on_drag)
-        self.detect_canvas.bind("<ButtonRelease-1>", self.on_release)
-        # Right-click for changing class
-        self.detect_canvas.bind("<Button-3>", self.on_right_press)
-        # Listbox events
-        self.detection_list.bind("<<ListboxSelect>>", self.on_list_select)
-        # Keyboard events
-        self.root.bind("<Delete>", self.delete_selected)
-        self.root.bind("<Escape>", self.cancel_add_mode)
-
-        # Mouse wheel for zooming
-        self.detect_canvas.bind("<MouseWheel>", self.on_zoom)  # For Windows/Linux
-        self.detect_canvas.bind("<Button-4>", self.on_zoom)  # For Linux
-        self.detect_canvas.bind("<Button-5>", self.on_zoom)  # For Linux
-
-    def on_zoom(self, event):
-        if self.current_frame_img is None:
-            return
-
-        zoom_factor = 1.1 if event.delta > 0 or event.num == 4 else 1 / 1.1
-        new_zoom_level = max(1.0, self.zoom_level * zoom_factor)
-
-        # Determine the canvas center
-        canvas_w, canvas_h = self.detect_canvas.winfo_width(), self.detect_canvas.winfo_height()
-        if canvas_w < 10 or canvas_h < 10:
-            canvas_w, canvas_h = 800, 600
-
-        # Calculate the image coordinates of the center point
-        center_x_img = (canvas_w / 2 - self.canvas_x_offset) / self.zoom_level
-        center_y_img = (canvas_h / 2 - self.canvas_y_offset) / self.zoom_level
-
-        # Update offsets to maintain the center point's position after zooming
-        self.canvas_x_offset += center_x_img * (self.zoom_level - new_zoom_level)
-        self.canvas_y_offset += center_y_img * (self.zoom_level - new_zoom_level)
-
-        self.zoom_level = new_zoom_level
-        self.redraw_canvas()
-
-    def select_video(self):
-        p = filedialog.askopenfilename(filetypes=[("MP4 files", "*.mp4"), ("All files", "*.*")])
-        if p:
-            self.video_path.set(p)
-            self.check_paths()
-            self.save_config()
-
-    def select_model(self):
-        p = filedialog.askopenfilename(filetypes=[("PyTorch Model", "*.pt"), ("All files", "*.*")])
-        if p:
-            self.model_path.set(p)
-            self.check_paths()
-            self.save_config()
-
-    def select_output_dir(self):
-        p = filedialog.askdirectory()
-        if p:
-            self.output_dir.set(p)
-            self.check_paths()
-            self.save_config()
-
-    def check_paths(self):
-        if self.video_path.get() and self.model_path.get() and self.output_dir.get():
-            if hasattr(self, 'load_button'):
-                self.load_button.config(state="normal")
-        else:
-            if hasattr(self, 'load_button'):
-                self.load_button.config(state="disabled")
 
     def load_assets(self):
         try:
             self.status_label.config(text="正在加载模型...")
+            self.logger.info("开始加载模型...")
             self.root.update_idletasks()
             self.model = YOLO(self.model_path.get())
             self.class_names = list(self.model.names.values())
@@ -301,37 +398,38 @@ class YoloAnnotator:
             self.cap = cv2.VideoCapture(self.video_path.get())
             if not self.cap.isOpened():
                 raise Exception("无法打开视频文件")
+            self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
             os.makedirs(self.output_dir.get(), exist_ok=True)
-            self.repredict_btn.config(state="normal")
-            self.add_box_btn.config(state="normal")
-            self.clear_btn.config(state="normal")
-            self.save_next_btn.config(state="normal")
-            self.skip_next_btn.config(state="normal")
+            self._set_ui_state("normal")
 
             self.status_label.config(text="加载成功，请点击'保存并下一张'开始处理。")
+            self.logger.info("模型和视频加载成功，准备处理。")
             self.navigate_frames(1, save=False)
         except Exception as e:
-            messagebox.showerror("加载失败", f"{e}")
+            self.logger.error(f"加载失败: {e}")
+            messagebox.showerror("加载失败", f"加载失败: {e}")
 
     def re_predict_frame(self):
         if self.current_frame_img is None:
+            self.logger.warning("无法重新预测，没有加载当前帧。")
             messagebox.showwarning("无图像", "没有加载当前帧")
             return
         self.save_config()
+        self.logger.info(f"正在重新预测第 {self.current_frame_num} 帧。")
         self.process_and_display_frame(self.current_frame_img, self.current_frame_num, predict=True)
 
     def process_and_display_frame(self, frame, frame_num, predict=True):
         self.current_frame_img = frame.copy()
         self.display_image(frame, self.orig_canvas, is_detect=False)
 
-        # Reset zoom and pan for new frame
         self.zoom_level = 1.0
         self.canvas_x_offset = 0
         self.canvas_y_offset = 0
         self.detect_canvas.config(cursor="crosshair")
 
         if predict:
+            self.logger.info(f"正在使用模型预测第 {frame_num} 帧。")
             res = self.model.predict(frame,
                                      imgsz=self.img_size.get(),
                                      conf=self.conf_threshold.get(),
@@ -344,6 +442,7 @@ class YoloAnnotator:
                     "id": i, "label": self.model.names[int(cls)],
                     "coords": [x1, y1, x2, y2], "conf": conf
                 })
+            self.logger.info(f"第 {frame_num} 帧预测完成，发现 {len(self.detections)} 个目标。")
 
         self.redraw_canvas()
         self.update_detection_list()
@@ -359,28 +458,23 @@ class YoloAnnotator:
         if canvas_w < 10 or canvas_h < 10:
             canvas_w, canvas_h = 800, 600
 
-        # Calculate base scale and offsets
         base_scale = min(canvas_w / w, canvas_h / h)
         img_w, img_h = int(w * base_scale), int(h * base_scale)
 
-        # Apply zoom
         zoom_w, zoom_h = int(img_w * self.zoom_level), int(img_h * self.zoom_level)
         resized = cv2.resize(self.current_frame_img, (zoom_w, zoom_h))
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         imgtk = ImageTk.PhotoImage(Image.fromarray(rgb))
-        self.detect_imgtk = imgtk  # Prevent garbage collection
+        self.detect_imgtk = imgtk
 
-        # Calculate initial centering offsets
-        initial_x_offset = (canvas_w - img_w) / 2
-        initial_y_offset = (canvas_h - img_h) / 2
+        initial_x_offset = (canvas_w - w * base_scale) / 2
+        initial_y_offset = (canvas_h - h * base_scale) / 2
 
-        # Apply pan
         final_x = self.canvas_x_offset + initial_x_offset
         final_y = self.canvas_y_offset + initial_y_offset
 
         self.detect_canvas.create_image(final_x, final_y, anchor="nw", image=imgtk)
 
-        # Redraw detections
         for det in self.detections:
             x1, y1, x2, y2 = det["coords"]
             cx1, cy1 = self.to_canvas(x1, y1)
@@ -447,34 +541,141 @@ class YoloAnnotator:
         return (cx - self.canvas_x_offset - initial_x_offset) / (base_scale * self.zoom_level), \
                (cy - self.canvas_y_offset - initial_y_offset) / (base_scale * self.zoom_level)
 
-    def navigate_frames(self, direction, save=True):
+    def _set_ui_state(self, state):
+        for btn in [self.repredict_btn, self.add_box_btn, self.delete_btn,
+                    self.clear_btn, self.prev_btn, self.save_next_btn,
+                    self.skip_next_btn, self.batch_convert_btn, self.jump_btn]:
+            btn.config(state=state)
+        self.detect_canvas.config(cursor="" if state == "disabled" else "crosshair")
+
+    def batch_process(self):
+        if not self.cap or self.is_processing_batch:
+            return
+
+        if not messagebox.askyesno("批量转换确认",
+                                   f"将从当前帧 ({self.current_frame_num}) 开始，按每 {self.frame_interval.get()} 帧间隔，自动处理并保存到视频末尾。是否继续？"):
+            self.logger.info("用户取消了批量转换。")
+            return
+
+        self.is_processing_batch = True
+        self._set_ui_state("disabled")
+        self.save_config()
+        self.logger.info("开始批量转换...")
+
+        total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # 修复点: 使用一个局部变量来跟踪批量处理的当前帧数
+        current_frame = self.current_frame_num
+
+        while current_frame < total_frames and self.is_processing_batch:
+            self.status_label.config(text=f"正在处理第 {current_frame} / {total_frames} 帧...")
+            self.root.update_idletasks()
+
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+            ret, frame = self.cap.read()
+
+            if not ret:
+                self.logger.warning(f"无法读取第 {current_frame} 帧，批量转换停止。")
+                break
+
+            json_path = os.path.join(self.output_dir.get(), f"frame_{current_frame}.json")
+            if os.path.exists(json_path):
+                self.load_annotations(json_path)
+                predict = False
+                self.logger.info(f"第 {current_frame} 帧的标注已存在，跳过预测。")
+            else:
+                predict = True
+
+            # 修复点: 传入正确的帧号到 save_annotations 和 process_and_display_frame
+            self.process_and_display_frame(frame, current_frame, predict=predict)
+            self.save_annotations(current_frame)
+            self.logger.info(f"第 {current_frame} 帧处理完成并已保存。")
+
+            # 修复点: 强制垃圾回收，防止内存累积
+            del frame
+            gc.collect()
+
+            current_frame += self.frame_interval.get()
+
+        self.is_processing_batch = False
+        self._set_ui_state("normal")
+        self.status_label.config(text="批量转换完成！")
+        self.logger.info("批量转换完成。")
+
+    def jump_to_frame(self):
         if self.cap is None:
             messagebox.showwarning("未加载", "请先加载视频和模型")
             return
 
+        try:
+            target_num = int(self.target_frame_num.get())
+            if not 0 <= target_num < self.total_frames:
+                messagebox.showerror("无效帧数", f"请输入一个有效的帧数，范围在 0 到 {self.total_frames - 1} 之间。")
+                self.logger.error(f"用户输入的帧数 {target_num} 超出范围。")
+                return
+
+            self.logger.info(f"正在跳转到指定帧数: {target_num}")
+
+            # Save current annotations
+            self.save_annotations(self.current_frame_num)
+
+            # Set the new frame number
+            self.current_frame_num = target_num
+            self.history.append(target_num)
+
+            # Read the frame
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.current_frame_num)
+            ret, frame = self.cap.read()
+            if not ret:
+                messagebox.showerror("读取失败", f"无法跳转并读取帧号为 {self.current_frame_num} 的帧。")
+                self.logger.error(f"无法读取帧号为 {self.current_frame_num} 的帧。")
+                return
+
+            json_path = os.path.join(self.output_dir.get(), f"frame_{self.current_frame_num}.json")
+            if os.path.exists(json_path):
+                self.load_annotations(json_path)
+                predict = False
+            else:
+                predict = True
+
+            self.process_and_display_frame(frame, self.current_frame_num, predict=predict)
+            self.prev_btn.config(state="normal" if len(self.history) > 1 else "disabled")
+
+        except ValueError:
+            messagebox.showerror("无效输入", "请输入一个有效的整数帧数。")
+            self.logger.error("用户输入了无效的帧数，不是整数。")
+
+    def navigate_frames(self, direction, save=True):
+        if self.cap is None or self.is_processing_batch:
+            self.logger.warning("无法导航，视频未加载或正在进行批量处理。")
+            messagebox.showwarning("未加载", "请先加载视频和模型")
+            return
+
         if save:
-            self.save_annotations()
+            self.save_annotations(self.current_frame_num)
 
         if direction == 1:
             last_frame = self.history[-1] if self.history else -self.frame_interval.get()
             target_frame_num = last_frame + self.frame_interval.get()
-            predict = True
+            self.logger.info(f"导航到下一帧，目标帧号: {target_frame_num}")
         else:
             if len(self.history) <= 1:
+                self.logger.warning("已是第一帧，无法回退。")
                 return
             self.history.pop()
             target_frame_num = self.history[-1]
-            predict = False
+            self.logger.info(f"回退到上一帧，目标帧号: {target_frame_num}")
 
         total = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if target_frame_num >= total:
             self.status_label.config(text="视频处理结束！")
+            self.logger.info("已到达视频末尾。")
             return
 
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame_num)
         ret, frame = self.cap.read()
         if not ret:
             self.status_label.config(text="读取失败或结束")
+            self.logger.error(f"无法读取帧号为 {target_frame_num} 的帧。")
             return
 
         self.current_frame_num = target_frame_num
@@ -485,22 +686,29 @@ class YoloAnnotator:
         if os.path.exists(json_path):
             self.load_annotations(json_path)
             predict = False
+            self.logger.info(f"第 {target_frame_num} 帧的标注已存在，从文件加载。")
+        else:
+            predict = True
 
         self.process_and_display_frame(frame, target_frame_num, predict=predict)
         self.prev_btn.config(state="normal" if len(self.history) > 1 else "disabled")
 
-    def save_annotations(self):
+    def save_annotations(self, frame_num):
         self.save_config()
+        # 修复点: 使用传入的 frame_num 来生成文件名
+        output_json_path = os.path.join(self.output_dir.get(), f"frame_{frame_num}.json")
+
         if not self.detections:
-            p = os.path.join(self.output_dir.get(), f"frame_{self.current_frame_num}.json")
-            if os.path.exists(p):
-                os.remove(p)
+            if os.path.exists(output_json_path):
+                os.remove(output_json_path)
+                self.logger.info(f"第 {frame_num} 帧无标注，已删除旧文件。")
             return
 
-        img_name = f"frame_{self.current_frame_num}.jpg"
+        img_name = f"frame_{frame_num}.jpg"
         img_path = os.path.join(self.output_dir.get(), img_name)
         cv2.imwrite(img_path, self.current_frame_img)
         h, w, _ = self.current_frame_img.shape
+        self.logger.info(f"保存图像文件: {img_path}")
 
         shapes = []
         for det in self.detections:
@@ -511,38 +719,45 @@ class YoloAnnotator:
                 "group_id": None, "shape_type": "rectangle", "flags": {}
             })
 
-        with open(os.path.join(self.output_dir.get(),
-                               f"frame_{self.current_frame_num}.json"),
-                  'w', encoding='utf-8') as f:
-            json.dump({
-                "version": "5.3.1", "flags": {}, "shapes": shapes,
-                "imagePath": img_name, "imageData": None,
-                "imageHeight": h, "imageWidth": w
-            }, f, indent=2)
+        try:
+            with open(output_json_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "version": "5.3.1", "flags": {}, "shapes": shapes,
+                    "imagePath": img_name, "imageData": None,
+                    "imageHeight": h, "imageWidth": w
+                }, f, indent=2)
+            self.logger.info(f"保存JSON标注文件: {output_json_path}")
+        except Exception as e:
+            self.logger.error(f"保存标注文件失败: {e}")
 
     def load_annotations(self, path):
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        self.detections = []
-        for i, s in enumerate(data['shapes']):
-            p1 = s['points'][0]
-            p2 = s['points'][1]
-            x1, y1 = p1[0], p1[1]
-            x2, y2 = p2[0], p2[1]
-            self.detections.append({
-                "id": i, "label": s['label'],
-                "coords": [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)],
-                "conf": 1.0
-            })
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self.detections = []
+            for i, s in enumerate(data['shapes']):
+                p1 = s['points'][0]
+                p2 = s['points'][1]
+                x1, y1 = p1[0], p1[1]
+                x2, y2 = p2[0], p2[1]
+                self.detections.append({
+                    "id": i, "label": s['label'],
+                    "coords": [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)],
+                    "conf": 1.0
+                })
+            self.logger.info(f"已从文件 {path} 加载 {len(self.detections)} 个标注。")
+        except Exception as e:
+            self.logger.error(f"加载标注文件失败: {e}")
+            messagebox.showerror("加载失败", "标注文件损坏或格式不正确。")
 
     def on_press(self, event):
-        # Image coordinates of cursor
+        if self.is_processing_batch: return
         ix, iy = self.to_image(event.x, event.y)
         self.selected_detection_id = None
         self.panning = False
 
         if self.add_box_mode:
-            # Start drawing new box
+            self.logger.info(f"开始添加新标注框，起始点: ({ix:.2f}, {iy:.2f})")
             self.drawing = True
             self.new_box_start_img = (ix, iy)
             x0, y0 = self.to_canvas(ix, iy)
@@ -554,13 +769,13 @@ class YoloAnnotator:
         else:
             item = self.get_item_at_cursor(event)
             if item:
-                # Start dragging a box
+                self.logger.info(f"选中标注框 (ID: {item['id']})，开始拖动。")
                 self.selected_detection_id = item["id"]
                 self.start_pos_img = (ix, iy)
                 self.start_coords = item["coords"].copy()
                 self.detect_canvas.config(cursor="fleur")
             else:
-                # Start panning
+                self.logger.info("未选中标注框，开始拖动画布。")
                 self.panning = True
                 self.pan_start_x = event.x
                 self.pan_start_y = event.y
@@ -570,11 +785,10 @@ class YoloAnnotator:
         self.update_detection_list()
 
     def on_drag(self, event):
-        # Image coordinates of cursor
+        if self.is_processing_batch: return
         ix, iy = self.to_image(event.x, event.y)
 
         if self.panning:
-            # Pan the canvas
             dx = event.x - self.pan_start_x
             dy = event.y - self.pan_start_y
             self.canvas_x_offset += dx
@@ -582,14 +796,10 @@ class YoloAnnotator:
             self.pan_start_x = event.x
             self.pan_start_y = event.y
             self.redraw_canvas()
-
         elif self.drawing and self.add_box_mode:
-            # Draw temporary box
             x0, y0 = self.to_canvas(*self.new_box_start_img)
             self.detect_canvas.coords(self.temp_box_id, x0, y0, event.x, event.y)
-
         elif self.selected_detection_id is not None:
-            # Move selected box
             dx = ix - self.start_pos_img[0]
             dy = iy - self.start_pos_img[1]
             det = next(d for d in self.detections if d["id"] == self.selected_detection_id)
@@ -598,6 +808,7 @@ class YoloAnnotator:
             self.redraw_canvas()
 
     def on_release(self, event):
+        if self.is_processing_batch: return
         self.panning = False
         self.detect_canvas.config(cursor="crosshair")
 
@@ -609,22 +820,24 @@ class YoloAnnotator:
             cls = self.ask_class_choice()
             if cls:
                 nid = max([d['id'] for d in self.detections] + [-1]) + 1
+                new_coords = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
                 self.detections.append({
-                    "id": nid, "label": cls,
-                    "coords": [min(x0, x1), min(y0, y1),
-                               max(x0, x1), max(y0, y1)],
-                    "conf": 1.0
+                    "id": nid, "label": cls, "coords": new_coords, "conf": 1.0
                 })
+                self.logger.info(f"已添加新标注框 (ID: {nid}, 类别: {cls})。")
             self.toggle_add_box_mode()
             self.redraw_canvas()
             self.update_detection_list()
 
     def on_right_press(self, event):
+        if self.is_processing_batch: return
         item = self.get_item_at_cursor(event)
         if item:
             cls = self.ask_class_choice()
             if cls:
+                old_label = item['label']
                 item['label'] = cls
+                self.logger.info(f"标注框 (ID: {item['id']}) 类别已从 '{old_label}' 更改为 '{cls}'。")
                 self.redraw_canvas()
                 self.update_detection_list()
 
@@ -668,9 +881,11 @@ class YoloAnnotator:
     def toggle_add_box_mode(self):
         self.add_box_mode = not self.add_box_mode
         if self.add_box_mode:
+            self.logger.info("已进入添加标注框模式。")
             self.detect_canvas.config(cursor="plus")
             self.add_box_btn.config(text="取消添加")
         else:
+            self.logger.info("已退出添加标注框模式。")
             self.detect_canvas.config(cursor="crosshair")
             self.add_box_btn.config(text="添加新框")
 
@@ -680,6 +895,7 @@ class YoloAnnotator:
 
     def delete_selected(self, event=None):
         if self.selected_detection_id is not None:
+            self.logger.info(f"正在删除选中的标注框 (ID: {self.selected_detection_id})。")
             self.detections = [d for d in self.detections
                                if d["id"] != self.selected_detection_id]
             self.selected_detection_id = None
@@ -687,11 +903,15 @@ class YoloAnnotator:
             self.update_detection_list()
 
     def clear_all_detections(self):
+        self.logger.warning("用户请求清除所有标注。")
         if messagebox.askokcancel("确认", "清除所有标注?"):
             self.detections.clear()
             self.selected_detection_id = None
             self.redraw_canvas()
             self.update_detection_list()
+            self.logger.info("所有标注已清除。")
+        else:
+            self.logger.info("已取消清除操作。")
 
     def on_list_select(self, _):
         idx = self.detection_list.curselection()
@@ -699,6 +919,7 @@ class YoloAnnotator:
             did = self.detections[idx[0]]["id"]
             self.selected_detection_id = did
             self.redraw_canvas()
+            self.logger.info(f"在列表中选中标注框 (ID: {did})。")
 
     def update_detection_list(self):
         self.detection_list.delete(0, tk.END)
@@ -714,6 +935,9 @@ class YoloAnnotator:
     def update_status(self):
         self.status_label.config(
             text=f"当前第 {self.current_frame_num} 帧 - 共检测到 {len(self.detections)} 个目标"
+        )
+        self.frame_label.config(
+            text=f"帧数: {self.current_frame_num}/{self.total_frames}"
         )
 
 

@@ -1,0 +1,122 @@
+{
+  "version": "5.3.1",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          117.33193969726562,
+          345.74554443359375
+        ],
+        [
+          167.31991577148438,
+          396.4939270019531
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          323.7604064941406,
+          378.5091247558594
+        ],
+        [
+          366.2810974121094,
+          435.7304382324219
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          207.31768798828125,
+          295.3493347167969
+        ],
+        [
+          243.61422729492188,
+          355.2678527832031
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          352.0443420410156,
+          447.7595520019531
+        ],
+        [
+          375.8202819824219,
+          471.9361572265625
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          349.1899719238281,
+          345.2010192871094
+        ],
+        [
+          396.3746643066406,
+          397.0760498046875
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          137.75991821289062,
+          280.6850891113281
+        ],
+        [
+          174.94236755371094,
+          341.9313659667969
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          90.36741638183594,
+          254.45492553710938
+        ],
+        [
+          148.0706329345703,
+          313.70245361328125
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    }
+  ],
+  "imagePath": "frame_17450.jpg",
+  "imageData": null,
+  "imageHeight": 852,
+  "imageWidth": 480
+}

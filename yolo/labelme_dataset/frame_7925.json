@@ -1,0 +1,90 @@
+{
+  "version": "5.3.1",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          118.23003387451172,
+          552.9410400390625
+        ],
+        [
+          151.3603973388672,
+          607.1904907226562
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          48.284263610839844,
+          484.4925842285156
+        ],
+        [
+          93.62703704833984,
+          541.4227294921875
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          119.74223327636719,
+          244.80413818359375
+        ],
+        [
+          168.9904327392578,
+          304.2250671386719
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          102.66085052490234,
+          370.9174499511719
+        ],
+        [
+          138.84288024902344,
+          411.1617431640625
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    },
+    {
+      "label": "Pawn",
+      "points": [
+        [
+          142.57798767089844,
+          379.73919677734375
+        ],
+        [
+          176.421630859375,
+          412.4139099121094
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {}
+    }
+  ],
+  "imagePath": "frame_7925.jpg",
+  "imageData": null,
+  "imageHeight": 852,
+  "imageWidth": 480
+}
