@@ -1,0 +1,8 @@
+{
+    "video_path": "E:/hszz/RoyaleYOLO/yolo/video/gzx_1.mp4",
+    "model_path": "E:/hszz/RoyaleYOLO/yolo/model/train_2/weights/best.pt",
+    "output_dir": "E:/hszz/RoyaleYOLO/yolo/labelme_dataset",
+    "conf_threshold": 0.4186046511627907,
+    "img_size": 640,
+    "frame_interval": 500
+}

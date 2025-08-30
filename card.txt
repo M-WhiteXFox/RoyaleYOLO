@@ -1,0 +1,238 @@
+<div class="ui bottom attached segment card_segment">
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Elixir Collector" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/elixir-collector.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Cannon Cart" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/cannon-cart.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Bowler" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/bowler.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Night Witch" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/night-witch.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Mother Witch" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/mother-witch.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Sparky" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/sparky.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Bandit" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/bandit.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Rage" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/rage.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Bomber" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/bomber.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblin Demolisher" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblin-demolisher.png">
+                    </div>
+        </div>
+<div class="ui bottom attached segment card_segment">
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Cannon" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/cannon.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Bomb Tower" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/bomb-tower.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Inferno Tower" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/inferno-tower.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Tesla" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/tesla.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Barbarians" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/barbarians.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Mini P.E.K.K.A" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/mini-pekka.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Lumberjack" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/lumberjack.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="P.E.K.K.A" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/pekka.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Barbarian Hut" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/barbarian-hut.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblin Hut" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblin-hut.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Furnace" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/furnace.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Royal Recruits" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/royal-recruits.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblin Cage" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblin-cage.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Elite Barbarians" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/elite-barbarians.png">
+                    </div>
+        </div>
+<div class="ui bottom attached segment card_segment">
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Knight" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/knight.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Valkyrie" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/valkyrie.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Ice Golem" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/ice-golem.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Miner" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/miner.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Rascals" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/rascals.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Prince" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/prince.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Fisherman" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/fisherman.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Battle Healer" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/battle-healer.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Dark Prince" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/dark-prince.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Royal Ghost" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/royal-ghost.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblin Machine" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblin-machine.png">
+                    </div>
+        </div>
+<div class="ui bottom attached segment card_segment">
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblin Gang" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblin-gang.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Goblins" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/goblins.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Tombstone" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/tombstone.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Skeleton Barrel" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/skeleton-barrel.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Skeleton Army" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/skeleton-army.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Skeletons" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/skeletons.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Guards" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/guards.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Fire Spirit" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/fire-spirit.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Ice Spirit" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/ice-spirit.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Heal Spirit" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/heal-spirit.png">
+                    </div>
+                    <div class="card item">
+
+
+<img class="deck_card  ui image" style="" loading="lazy" alt="Electro Spirit" src="https://cdns3.royaleapi.com/cdn-cgi/image/w=150,h=180,format=auto/static/img/cards/v6-aa179c9e/electro-spirit.png">
+                    </div>
+        </div>
